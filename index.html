@@ -400,54 +400,6 @@
   }
   .export-btn:active { border-color: var(--accent); color: var(--accent); }
 
-  /* REST TIMER */
-  .rest-timer {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    animation: slideIn .2s ease;
-  }
-  .rest-timer.warning { border-color: var(--accent2); }
-  .rest-timer-clock {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 52px;
-    color: var(--accent);
-    line-height: 1;
-    min-width: 90px;
-  }
-  .rest-timer.warning .rest-timer-clock { color: var(--accent2); }
-  .rest-timer-info { flex: 1; }
-  .rest-timer-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 4px; }
-  .rest-timer-bar-bg {
-    background: var(--surface);
-    border-radius: 4px;
-    height: 5px;
-    overflow: hidden;
-    margin-top: 6px;
-  }
-  .rest-timer-bar-fill {
-    height: 100%;
-    border-radius: 4px;
-    background: linear-gradient(90deg, var(--accent2), var(--accent));
-    transition: width .5s linear;
-  }
-  .rest-skip-btn {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--muted);
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 1px;
-    padding: 6px 10px;
-    cursor: pointer;
-  }
-  .rest-skip-btn:active { border-color: var(--accent); color: var(--accent); }
 </style>
 </head>
 <body>
@@ -483,7 +435,6 @@
     <button class="add-set-btn" onclick="addSet()">SET HINZUFÜGEN</button>
   </div>
 
-  <div id="restTimerEl" style="display:none"></div>
   <div class="sets-list" id="setsList"></div>
 </div>
 
@@ -549,7 +500,6 @@ function addSet() {
   data[key].push({ reps: currentReps, time: new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) });
   saveData(data);
   renderSets();
-  startRestTimer();
   if (navigator.vibrate) navigator.vibrate(30);
 }
 
@@ -642,9 +592,13 @@ function renderStats() {
   el.innerHTML = `
     <div class="streak-bar">
       <div class="streak-num">${streak}</div>
-      <div class="streak-info">
+      <div class="streak-info" style="flex:1">
         <div class="label">TAGE IN FOLGE</div>
         <div class="sub">${streak > 0 ? '🔥 Weiter so!' : 'Heute starten!'}</div>
+      </div>
+      <div style="border-left:1px solid var(--border);padding-left:14px;text-align:right">
+        <div class="streak-num" style="font-size:40px;color:var(--text)">${keys.length}</div>
+        <div class="label" style="font-size:10px;color:var(--muted);letter-spacing:1px">TRAININGSTAGE</div>
       </div>
     </div>
 
@@ -872,54 +826,20 @@ function exportCSV() {
 }
 
 
-// ─── REST TIMER ──────────────────────────────────────────
-const REST_TARGET = 90;
-let restInterval = null;
-let restStart = null;
-
-function startRestTimer() {
-  stopRestTimer();
-  restStart = Date.now();
-  renderRestTimer();
-  restInterval = setInterval(renderRestTimer, 500);
-}
-
-function stopRestTimer() {
-  clearInterval(restInterval);
-  restInterval = null;
-  restStart = null;
-  const el = document.getElementById('restTimerEl');
-  if (el) el.style.display = 'none';
-}
-
-function renderRestTimer() {
-  if (!restStart) return;
-  const el = document.getElementById('restTimerEl');
-  if (!el) return;
-  const elapsed = Math.floor((Date.now() - restStart) / 1000);
-  const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
-  const ss = String(elapsed % 60).padStart(2, '0');
-  const pct = Math.min(100, Math.round((elapsed / REST_TARGET) * 100));
-  const warn = elapsed >= REST_TARGET;
-  el.style.display = 'block';
-  el.innerHTML = `
-    <div class="rest-timer${warn ? ' warning' : ''}">
-      <div class="rest-timer-clock">${mm}:${ss}</div>
-      <div class="rest-timer-info">
-        <div class="rest-timer-label">PAUSE ${warn ? '— BEREIT!' : `· ZIEL ${REST_TARGET}s`}</div>
-        <div class="rest-timer-bar-bg">
-          <div class="rest-timer-bar-fill" style="width:${pct}%"></div>
-        </div>
-      </div>
-      <button class="rest-skip-btn" onclick="stopRestTimer()">SKIP</button>
-    </div>
-  `;
-  if (warn && elapsed === REST_TARGET && navigator.vibrate) {
-    navigator.vibrate([50, 50, 50]);
-  }
-}
-
 // ─── INIT ────────────────────────────────────────────────
+let lastKnownDay = todayKey();
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    const newDay = todayKey();
+    if (newDay !== lastKnownDay) {
+      lastKnownDay = newDay;
+      updateDateBadge();
+      renderSets();
+    }
+  }
+});
+
 updateDateBadge();
 renderSets();
 
